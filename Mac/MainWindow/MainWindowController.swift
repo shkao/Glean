@@ -640,7 +640,9 @@ extension MainWindowController: TimelineContainerViewControllerDelegate {
 		if let articles = articles {
 			if articles.count == 1 {
 				activityManager.reading(feed: nil, article: articles.first)
-				if articles.first?.feed?.isArticleExtractorAlwaysOn ?? false {
+				let shouldAutoExtract = articles.first?.feed?.isArticleExtractorAlwaysOn ?? false
+				let lacksFullContent = articles.first?.contentHTML == nil || (articles.first?.contentHTML?.count ?? 0) < 500
+				if shouldAutoExtract || lacksFullContent {
 					detailState = .loading
 					startArticleExtractorForCurrentLink()
 				} else {
@@ -739,6 +741,10 @@ extension MainWindowController: NSSearchFieldDelegate {
 extension MainWindowController: ArticleExtractorDelegate {
 
 	func articleExtractionDidFail(with: Error) {
+		if let article = oneSelectedArticle {
+			let detailState = DetailState.article(article, nil)
+			detailViewController?.setState(detailState, mode: timelineSourceMode)
+		}
 		makeToolbarValidate()
 	}
 
@@ -876,8 +882,8 @@ extension MainWindowController: NSToolbarDelegate {
 			return buildToolbarButton(.cleanUp, title, Assets.Images.cleanUp, "cleanUp:")
 
 		case .ollamaPanel:
-			let title = NSLocalizedString("Ollama", comment: "Ollama")
-			return buildToolbarButton(.ollamaPanel, title, NSImage(systemSymbolName: "brain", accessibilityDescription: "Ollama")!, "toggleOllamaPanel:")
+			let title = NSLocalizedString("Summarize", comment: "Summarize")
+			return buildToolbarButton(.ollamaPanel, title, NSImage(systemSymbolName: "sparkles", accessibilityDescription: "Summarize")!, "toggleOllamaPanel:")
 
 		default:
 			break
@@ -925,6 +931,7 @@ extension MainWindowController: NSToolbarDelegate {
 			.readerView,
 			.share,
 			.openInBrowser,
+			.ollamaPanel,
 			.flexibleSpace,
 			.search
 		]
@@ -1354,7 +1361,8 @@ private extension MainWindowController {
 	}
 
 	func startArticleExtractorForCurrentLink() {
-		if let link = currentLink, let extractor = ArticleExtractor(link, delegate: self) {
+		if let link = currentLink {
+			let extractor = ArticleExtractor(link, delegate: self)
 			extractor.process()
 			articleExtractor = extractor
 		}

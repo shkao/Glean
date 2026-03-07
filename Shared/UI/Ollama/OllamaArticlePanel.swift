@@ -2,325 +2,639 @@
 //  OllamaArticlePanel.swift
 //  Glean
 //
-//  Panel shown below or beside the article detail view.
-//  Provides summarize, tag, and Q&A actions powered by Ollama.
+//  Right sidebar: AI-native assistant panel for article summarization and Q&A.
+//  Collapsed = thin tab strip. Expanded = full sidebar with card-based results.
 //
 
 import SwiftUI
+import OllamaService
+
+@MainActor
+final class OllamaPanelState: ObservableObject {
+	@Published var isExpanded = false
+}
+
+// MARK: - Main View
 
 struct OllamaArticlePanel: View {
 
 	let articleTitle: String
 	let articleExcerpt: String
+	@ObservedObject var panelState: OllamaPanelState
 
-	@State private var activeTab: PanelTab = .summary
+	@AppStorage("OllamaPanelFontSize") private var fontSize: Double = 13
+	@AppStorage("OllamaSummaryLanguage") private var summaryLanguage: SummaryLanguage = .english
 	@State private var summary = ""
-	@State private var tags: [String] = []
+	@State private var isSummarizing = false
 	@State private var question = ""
 	@State private var answer = ""
-	@State private var isLoading = false
+	@State private var isAnswering = false
 	@State private var isOllamaAvailable = true
+	@State private var errorMessage: String?
+	@State private var didCopySummary = false
+	@State private var didCopyAnswer = false
+	@State private var showModelPicker = false
+	@State private var showSettings = false
+	@State private var availableModels: [OllamaModel] = []
+	@State private var selectedModel: String = OllamaSettings.load().preferredModel
+
+	private var bodyFont: SwiftUI.Font { .system(size: fontSize) }
+	private var smallFont: SwiftUI.Font { .system(size: fontSize - 2) }
+	private var tinyFont: SwiftUI.Font { .system(size: max(fontSize - 4, 9)) }
+
+	private let collapsedWidth: CGFloat = 36
+	private let expandedWidth: CGFloat = 300
 
 	var body: some View {
-		VStack(spacing: 0) {
-			// Tab bar
-			tabBar
+		HStack(spacing: 0) {
+			if panelState.isExpanded {
+				expandedSidebar
+					.frame(width: expandedWidth)
+					.transition(.move(edge: .trailing))
+			}
 
+			collapsedStrip
+				.frame(width: collapsedWidth)
+		}
+		.animation(.easeInOut(duration: 0.25), value: panelState.isExpanded)
+	}
+
+	// MARK: - Collapsed Strip
+
+	private var collapsedStrip: some View {
+		Button {
+			withAnimation(.easeInOut(duration: 0.25)) {
+				panelState.isExpanded.toggle()
+			}
+		} label: {
+			VStack(spacing: 8) {
+				Image(systemName: "sparkles")
+					.font(.system(size: 14))
+					.foregroundStyle(Color.accentColor)
+
+				Text("AI")
+					.font(.system(size: 10, weight: .semibold))
+					.foregroundStyle(.secondary)
+
+				if isSummarizing || isAnswering {
+					ProgressView()
+						.controlSize(.mini)
+				}
+
+				Spacer()
+
+				Image(systemName: panelState.isExpanded ? "chevron.right" : "chevron.left")
+					.font(.system(size: 9))
+					.foregroundStyle(.tertiary)
+			}
+			.padding(.vertical, 12)
+			.frame(maxWidth: .infinity, maxHeight: .infinity)
+			.contentShape(Rectangle())
+		}
+		.buttonStyle(.plain)
+		.background(.bar)
+		.help(panelState.isExpanded ? "Collapse AI sidebar" : "Expand AI sidebar")
+	}
+
+	// MARK: - Expanded Sidebar
+
+	private var expandedSidebar: some View {
+		VStack(spacing: 0) {
+			sidebarHeader
 			Divider()
 
-			// Content
 			if !isOllamaAvailable {
 				unavailableView
 			} else {
-				switch activeTab {
-				case .summary:
-					summaryView
-				case .tags:
-					tagsView
-				case .ask:
-					askView
+				// Scrollable content area
+				ScrollView {
+					VStack(alignment: .leading, spacing: 10) {
+						summaryCard
+						answerCard
+					}
+					.padding(10)
 				}
+
+				Divider()
+
+				// Pinned input bar at bottom
+				askInputBar
 			}
 		}
 		.background(.background)
-		.clipShape(RoundedRectangle(cornerRadius: 12))
-		.overlay(
-			RoundedRectangle(cornerRadius: 12)
-				.stroke(.separator)
-		)
 	}
 
-	// MARK: - Tab Bar
+	// MARK: - Header
 
-	private var tabBar: some View {
-		HStack(spacing: 0) {
-			tabButton(.summary, icon: "text.quote", label: "Summary")
-			tabButton(.tags, icon: "tag", label: "Tags")
-			tabButton(.ask, icon: "bubble.left.and.text.bubble.right", label: "Ask")
+	private var sidebarHeader: some View {
+		HStack(spacing: 6) {
+			// Model selector (primary header element)
+			Circle()
+				.fill(isOllamaAvailable ? .green : .red)
+				.frame(width: 6, height: 6)
+
+			Button {
+				showModelPicker.toggle()
+				if showModelPicker { loadModels() }
+			} label: {
+				HStack(spacing: 3) {
+					Text(selectedModel)
+						.font(.system(size: fontSize - 2, weight: .medium))
+						.lineLimit(1)
+
+					Image(systemName: "chevron.up.chevron.down")
+						.font(.system(size: 7))
+						.foregroundStyle(.tertiary)
+				}
+			}
+			.buttonStyle(.plain)
+			.popover(isPresented: $showModelPicker, arrowEdge: .bottom) {
+				modelPickerPopover
+			}
 
 			Spacer()
 
-			// Status indicator
-			HStack(spacing: 4) {
-				Circle()
-					.fill(isOllamaAvailable ? .green : .red)
-					.frame(width: 6, height: 6)
-				Text(isOllamaAvailable ? "Ollama" : "Offline")
-					.font(.caption2)
+			// Settings gear (font size + info)
+			Button {
+				showSettings.toggle()
+			} label: {
+				Image(systemName: "textformat.size")
+					.font(.system(size: 11))
 					.foregroundStyle(.secondary)
 			}
-			.padding(.trailing, 12)
+			.buttonStyle(.plain)
+			.popover(isPresented: $showSettings, arrowEdge: .bottom) {
+				fontSizePopover
+			}
+			.help("Text size")
 		}
-		.padding(.vertical, 4)
+		.padding(.horizontal, 10)
+		.padding(.vertical, 7)
 		.background(.bar)
 	}
 
-	private func tabButton(_ tab: PanelTab, icon: String, label: String) -> some View {
-		Button {
-			activeTab = tab
-		} label: {
-			Label(label, systemImage: icon)
-				.font(.subheadline)
-				.padding(.horizontal, 12)
-				.padding(.vertical, 6)
-				.background(activeTab == tab ? Color.accentColor.opacity(0.1) : .clear)
-				.clipShape(RoundedRectangle(cornerRadius: 6))
+	private var fontSizePopover: some View {
+		HStack(spacing: 12) {
+			Button {
+				fontSize = max(fontSize - 1, 10)
+			} label: {
+				Image(systemName: "minus.circle")
+					.font(.body)
+			}
+			.buttonStyle(.plain)
+			.disabled(fontSize <= 10)
+
+			Text("\(Int(fontSize)) pt")
+				.font(.system(size: 12, weight: .medium).monospacedDigit())
+				.frame(width: 36)
+
+			Button {
+				fontSize = min(fontSize + 1, 20)
+			} label: {
+				Image(systemName: "plus.circle")
+					.font(.body)
+			}
+			.buttonStyle(.plain)
+			.disabled(fontSize >= 20)
 		}
-		.buttonStyle(.plain)
+		.padding(12)
 	}
 
-	// MARK: - Summary View
+	// MARK: - Summary Card
 
-	private var summaryView: some View {
-		VStack(alignment: .leading, spacing: 12) {
-			if summary.isEmpty && !isLoading {
-				VStack(spacing: 12) {
-					Text("Generate a 2-3 sentence summary of this article.")
-						.font(.subheadline)
-						.foregroundStyle(.secondary)
+	private var summaryCard: some View {
+		VStack(alignment: .leading, spacing: 8) {
+			// Card header
+			HStack(spacing: 4) {
+				Image(systemName: "text.quote")
+					.font(.system(size: 10))
+					.foregroundStyle(.secondary)
+				Text("Summary")
+					.font(.system(size: max(fontSize - 3, 9), weight: .medium))
+					.foregroundStyle(.secondary)
+				Spacer()
+			}
+
+			if summary.isEmpty && !isSummarizing {
+				// Compact action row
+				HStack(spacing: 6) {
+					languageMenu
 
 					Button {
-						simulateSummary()
+						runSummary()
 					} label: {
 						Label("Summarize", systemImage: "sparkles")
+							.font(smallFont)
 					}
 					.buttonStyle(.borderedProminent)
 					.controlSize(.small)
 				}
-				.frame(maxWidth: .infinity)
-				.padding()
-			} else {
-				ScrollView {
-					VStack(alignment: .leading, spacing: 8) {
-						if isLoading {
-							HStack(spacing: 8) {
-								ProgressView()
-									.controlSize(.small)
-								Text("Generating summary...")
-									.font(.subheadline)
-									.foregroundStyle(.secondary)
-							}
-						}
 
-						if !summary.isEmpty {
-							Text(summary)
-								.font(.subheadline)
-								.textSelection(.enabled)
-						}
-					}
-					.padding()
+				if let errorMessage, !isAnswering {
+					errorBanner(errorMessage) { runSummary() }
+				}
+			} else {
+				// Result
+				if !summary.isEmpty {
+					streamingText(summary, isStreaming: isSummarizing)
+				} else if isSummarizing {
+					skeletonLines(count: 3)
 				}
 
-				if !summary.isEmpty {
-					Divider()
-					HStack {
+				// Inline actions after result
+				if !summary.isEmpty && !isSummarizing {
+					HStack(spacing: 6) {
+						languageMenu
+
 						Button {
-							summary = ""
+							runSummary()
 						} label: {
-							Label("Regenerate", systemImage: "arrow.clockwise")
+							Image(systemName: "arrow.clockwise")
+								.font(.system(size: 10))
 						}
-						.buttonStyle(.borderless)
-						.font(.caption)
+						.buttonStyle(.plain)
+						.foregroundStyle(.secondary)
+						.help("Regenerate")
 
 						Spacer()
 
 						Button {
-							copyToClipboard(summary)
+							copySummary(summary)
 						} label: {
-							Label("Copy", systemImage: "doc.on.doc")
+							Image(systemName: didCopySummary ? "checkmark" : "doc.on.doc")
+								.font(.system(size: 10))
 						}
-						.buttonStyle(.borderless)
-						.font(.caption)
+						.buttonStyle(.plain)
+						.foregroundStyle(didCopySummary ? Color.accentColor : .secondary)
+						.help(didCopySummary ? "Copied" : "Copy")
 					}
-					.padding(.horizontal)
-					.padding(.vertical, 8)
 				}
 			}
 		}
+		.padding(10)
+		.background(.quaternary.opacity(0.3))
+		.clipShape(RoundedRectangle(cornerRadius: 8))
 	}
 
-	// MARK: - Tags View
+	// MARK: - Answer Card
 
-	private var tagsView: some View {
-		VStack(alignment: .leading, spacing: 12) {
-			if tags.isEmpty && !isLoading {
-				VStack(spacing: 12) {
-					Text("Generate topic tags for this article.")
-						.font(.subheadline)
+	@ViewBuilder
+	private var answerCard: some View {
+		if !answer.isEmpty || isAnswering {
+			VStack(alignment: .leading, spacing: 8) {
+				HStack(spacing: 4) {
+					Image(systemName: "bubble.left.and.text.bubble.right")
+						.font(.system(size: 10))
 						.foregroundStyle(.secondary)
+					Text("Answer")
+						.font(.system(size: max(fontSize - 3, 9), weight: .medium))
+						.foregroundStyle(.secondary)
+					Spacer()
 
-					Button {
-						simulateTags()
-					} label: {
-						Label("Generate Tags", systemImage: "tag")
+					if !answer.isEmpty && !isAnswering {
+						Button {
+							copyAnswer(answer)
+						} label: {
+							Image(systemName: didCopyAnswer ? "checkmark" : "doc.on.doc")
+								.font(.system(size: 10))
+						}
+						.buttonStyle(.plain)
+						.foregroundStyle(didCopyAnswer ? Color.accentColor : .secondary)
 					}
-					.buttonStyle(.borderedProminent)
-					.controlSize(.small)
 				}
-				.frame(maxWidth: .infinity)
-				.padding()
-			} else {
-				VStack(alignment: .leading, spacing: 12) {
-					if isLoading {
-						HStack(spacing: 8) {
-							ProgressView()
-								.controlSize(.small)
-							Text("Generating tags...")
-								.font(.subheadline)
-								.foregroundStyle(.secondary)
-						}
-						.padding()
-					}
 
-					if !tags.isEmpty {
-						FlowLayout(spacing: 8) {
-							ForEach(tags, id: \.self) { tag in
-								TagChip(tag: tag)
-							}
-						}
-						.padding()
-					}
+				if !answer.isEmpty {
+					streamingText(answer, isStreaming: isAnswering)
+				} else if isAnswering {
+					skeletonLines(count: 2)
 				}
 			}
+			.padding(10)
+			.background(.quaternary.opacity(0.3))
+			.clipShape(RoundedRectangle(cornerRadius: 8))
+			.transition(.opacity.combined(with: .move(edge: .top)))
 		}
 	}
 
-	// MARK: - Ask View
+	// MARK: - Ask Input Bar
 
-	private var askView: some View {
-		VStack(spacing: 0) {
-			// Answer area
-			ScrollView {
-				if answer.isEmpty && !isLoading {
-					VStack(spacing: 8) {
-						Image(systemName: "bubble.left.and.text.bubble.right")
-							.font(.title2)
-							.foregroundStyle(.tertiary)
-						Text("Ask a question about this article")
-							.font(.subheadline)
-							.foregroundStyle(.secondary)
-					}
-					.frame(maxWidth: .infinity)
-					.padding(.top, 32)
-				} else {
-					VStack(alignment: .leading, spacing: 8) {
-						if isLoading {
-							HStack(spacing: 8) {
-								ProgressView()
-									.controlSize(.small)
-								Text("Thinking...")
-									.font(.subheadline)
-									.foregroundStyle(.secondary)
-							}
-						}
-						if !answer.isEmpty {
-							Text(answer)
-								.font(.subheadline)
-								.textSelection(.enabled)
-						}
-					}
-					.padding()
-				}
+	private var askInputBar: some View {
+		HStack(spacing: 6) {
+			TextField("Ask about this article...", text: $question)
+				.textFieldStyle(.plain)
+				.font(smallFont)
+				.padding(.horizontal, 8)
+				.padding(.vertical, 5)
+				.background(.quaternary.opacity(0.4))
+				.clipShape(RoundedRectangle(cornerRadius: 6))
+				.onSubmit { runAnswer() }
+
+			Button {
+				runAnswer()
+			} label: {
+				Image(systemName: "arrow.up.circle.fill")
+					.font(.system(size: 20))
+					.foregroundStyle(question.isEmpty || isAnswering ? .gray.opacity(0.3) : Color.accentColor)
 			}
+			.buttonStyle(.plain)
+			.disabled(question.isEmpty || isAnswering)
+		}
+		.padding(.horizontal, 10)
+		.padding(.vertical, 8)
+		.background(.bar)
+	}
+
+	// MARK: - Model Picker
+
+	private var modelPickerPopover: some View {
+		VStack(alignment: .leading, spacing: 0) {
+			HStack {
+				Text("Select Model")
+					.font(.subheadline.weight(.semibold))
+				Spacer()
+				Text("\(Int(Self.systemRAMGB)) GB RAM")
+					.font(.system(size: 10))
+					.foregroundStyle(.secondary)
+					.padding(.horizontal, 6)
+					.padding(.vertical, 2)
+					.background(.quaternary.opacity(0.5))
+					.clipShape(RoundedRectangle(cornerRadius: 4))
+			}
+			.padding(.horizontal, 14)
+			.padding(.top, 12)
+			.padding(.bottom, 8)
 
 			Divider()
 
-			// Question input
+			if availableModels.isEmpty {
+				HStack(spacing: 8) {
+					ProgressView().controlSize(.small)
+					Text("Loading models...")
+						.font(.caption)
+						.foregroundStyle(.secondary)
+				}
+				.padding(14)
+			} else {
+				ScrollView {
+					VStack(spacing: 2) {
+						ForEach(availableModels, id: \.name) { model in
+							modelRow(model)
+						}
+					}
+					.padding(.vertical, 6)
+					.padding(.horizontal, 8)
+				}
+				.frame(maxHeight: 280)
+			}
+		}
+		.frame(width: 280)
+	}
+
+	private func modelRow(_ model: OllamaModel) -> some View {
+		let isSelected = model.name == selectedModel
+		let fit = modelFit(model)
+
+		return Button {
+			selectedModel = model.name
+			var settings = OllamaSettings.load()
+			settings.preferredModel = model.name
+			settings.save()
+			showModelPicker = false
+		} label: {
 			HStack(spacing: 8) {
-				TextField("Ask about this article...", text: $question)
-					.textFieldStyle(.roundedBorder)
-					.onSubmit {
-						simulateAnswer()
+				VStack(alignment: .leading, spacing: 2) {
+					HStack(spacing: 5) {
+						Text(model.name)
+							.font(.caption.weight(isSelected ? .semibold : .regular))
+							.foregroundStyle(.primary)
+							.lineLimit(1)
+
+						if isSelected {
+							Image(systemName: "checkmark")
+								.font(.system(size: 8, weight: .bold))
+								.foregroundStyle(Color.accentColor)
+						}
 					}
 
-				Button {
-					simulateAnswer()
-				} label: {
-					Image(systemName: "arrow.up.circle.fill")
-						.font(.title2)
+					HStack(spacing: 6) {
+						if let params = model.details?.parameterSize {
+							Text(params)
+								.font(.system(size: 10))
+								.foregroundStyle(.secondary)
+						}
+
+						Text(String(format: "%.1f GB", model.sizeGB))
+							.font(.system(size: 10))
+							.foregroundStyle(.secondary)
+
+						if let quant = model.details?.quantizationLevel {
+							Text(quant)
+								.font(.system(size: 10))
+								.foregroundStyle(.tertiary)
+						}
+					}
 				}
-				.buttonStyle(.borderless)
-				.disabled(question.isEmpty || isLoading)
+
+				Spacer()
+
+				Text(fit.label)
+					.font(.system(size: 9, weight: .medium))
+					.foregroundStyle(fit.color)
+					.padding(.horizontal, 6)
+					.padding(.vertical, 2)
+					.background(fit.color.opacity(0.12))
+					.clipShape(RoundedRectangle(cornerRadius: 4))
 			}
-			.padding()
+			.padding(.horizontal, 8)
+			.padding(.vertical, 6)
+			.background(isSelected ? Color.accentColor.opacity(0.1) : .clear)
+			.clipShape(RoundedRectangle(cornerRadius: 6))
+			.contentShape(Rectangle())
 		}
+		.buttonStyle(.plain)
 	}
 
-	// MARK: - Unavailable
+	// MARK: - Language Menu
+
+	private var languageMenu: some View {
+		Menu {
+			ForEach(SummaryLanguage.allCases) { lang in
+				Button {
+					summaryLanguage = lang
+				} label: {
+					HStack {
+						Text("\(lang.flag) \(lang.label)")
+						if lang == summaryLanguage {
+							Spacer()
+							Image(systemName: "checkmark")
+						}
+					}
+				}
+			}
+		} label: {
+			HStack(spacing: 3) {
+				Text(summaryLanguage.flag)
+					.font(.system(size: 11))
+				Text(summaryLanguage.shortLabel)
+					.font(.system(size: 10, weight: .medium))
+				Image(systemName: "chevron.up.chevron.down")
+					.font(.system(size: 7, weight: .semibold))
+			}
+			.foregroundStyle(.secondary)
+			.padding(.horizontal, 6)
+			.padding(.vertical, 3)
+			.background(.quaternary.opacity(0.3))
+			.clipShape(RoundedRectangle(cornerRadius: 5))
+		}
+		.menuStyle(.borderlessButton)
+		.fixedSize()
+	}
+
+	// MARK: - Shared Components
+
+	private func streamingText(_ text: String, isStreaming: Bool) -> some View {
+		(Text(text) + (isStreaming ? Text("  \u{258C}").foregroundColor(Color.accentColor) : Text("")))
+			.font(bodyFont)
+			.lineSpacing(3)
+			.textSelection(.enabled)
+	}
+
+	private func skeletonLines(count: Int) -> some View {
+		VStack(alignment: .leading, spacing: 8) {
+			ForEach(0..<count, id: \.self) { i in
+				RoundedRectangle(cornerRadius: 3)
+					.fill(.quaternary)
+					.frame(height: fontSize * 0.8)
+					.frame(maxWidth: i == count - 1 ? 120 : .infinity)
+			}
+		}
+		.shimmering()
+	}
+
+	private func errorBanner(_ message: String, retry: @escaping () -> Void) -> some View {
+		HStack(spacing: 4) {
+			Image(systemName: "exclamationmark.triangle.fill")
+				.foregroundStyle(.orange)
+				.font(tinyFont)
+			Text(message)
+				.font(tinyFont)
+				.foregroundStyle(.secondary)
+				.lineLimit(2)
+			Spacer()
+			Button("Retry") { retry() }
+				.buttonStyle(.borderless)
+				.font(tinyFont.bold())
+		}
+		.padding(6)
+		.background(.orange.opacity(0.08))
+		.clipShape(RoundedRectangle(cornerRadius: 5))
+	}
 
 	private var unavailableView: some View {
-		VStack(spacing: 12) {
+		VStack(spacing: 8) {
 			Image(systemName: "exclamationmark.triangle")
-				.font(.title2)
+				.font(.title3)
 				.foregroundStyle(.secondary)
 			Text("Ollama is not running")
-				.font(.subheadline.bold())
-			Text("Start Ollama on your Mac to use AI features.")
-				.font(.caption)
+				.font(smallFont.bold())
+			Text("Start Ollama to use AI features.")
+				.font(tinyFont)
 				.foregroundStyle(.secondary)
 		}
-		.frame(maxWidth: .infinity)
-		.padding()
+		.frame(maxWidth: .infinity, maxHeight: .infinity)
+		.padding(12)
 	}
 
-	// MARK: - Simulation
+	// MARK: - Model Helpers
 
-	private func simulateSummary() {
-		isLoading = true
-		summary = ""
+	private static let systemRAMGB: Double = Double(ProcessInfo.processInfo.physicalMemory) / 1_073_741_824
+
+	private func modelFit(_ model: OllamaModel) -> ModelFit {
+		let available = Self.systemRAMGB - 4.0
+		let needed = model.estimatedRAMGB
+		if needed <= available * 0.5 { return .ideal }
+		if needed <= available { return .ok }
+		return .heavy
+	}
+
+	private func loadModels() {
 		Task {
-			let words = "This article discusses the rapid evolution of large language models and their growing integration into developer workflows. The author argues that while AI coding assistants can boost productivity for routine tasks, they introduce new categories of subtle bugs that require stronger code review practices. Key takeaway: teams should invest in review tooling proportional to their AI adoption rate.".split(separator: " ")
-			for word in words {
-				try? await Task.sleep(for: .milliseconds(40))
-				summary += (summary.isEmpty ? "" : " ") + word
+			do {
+				let client = ollamaClient()
+				let models = try await client.listModels()
+				availableModels = models.sorted { a, b in
+					let fitA = modelFit(a).sortOrder
+					let fitB = modelFit(b).sortOrder
+					if fitA != fitB { return fitA < fitB }
+					return a.size < b.size
+				}
+			} catch {
+				isOllamaAvailable = false
 			}
-			isLoading = false
 		}
 	}
 
-	private func simulateTags() {
-		isLoading = true
+	// MARK: - Ollama Integration
+
+	private func ollamaClient() -> OllamaClient {
+		OllamaClient(baseURL: OllamaSettings.load().baseURL)
+	}
+
+	private func runSummary() {
+		isSummarizing = true
+		summary = ""
+		errorMessage = nil
 		Task {
-			try? await Task.sleep(for: .seconds(1))
-			tags = ["AI", "Developer Tools", "Code Review", "LLM", "Productivity"]
-			isLoading = false
+			do {
+				let client = ollamaClient()
+				guard await client.checkAvailability() else {
+					isOllamaAvailable = false
+					isSummarizing = false
+					return
+				}
+				isOllamaAvailable = true
+
+				let summarizer = ArticleSummarizer(client: client, model: selectedModel)
+				let text = articleExcerpt.isEmpty ? articleTitle : articleExcerpt
+				let langCode = SummaryLanguageCode(rawValue: summaryLanguage.rawValue) ?? .english
+				let stream = try await summarizer.summarize(articleText: text, language: langCode)
+				for try await token in stream {
+					summary += token
+				}
+			} catch {
+				errorMessage = error.localizedDescription
+			}
+			isSummarizing = false
 		}
 	}
 
-	private func simulateAnswer() {
+	private func runAnswer() {
 		guard !question.isEmpty else { return }
-		isLoading = true
+		isAnswering = true
 		answer = ""
+		errorMessage = nil
 		let q = question
 		question = ""
 		Task {
-			let response = "Based on the article, \(q.lowercased().hasSuffix("?") ? q.dropLast() : q[...]) is addressed in the second section. The author notes that current AI coding tools excel at boilerplate generation but struggle with architectural decisions. The recommendation is to use AI for implementation details while keeping humans in the loop for design choices."
-			let words = response.split(separator: " ")
-			for word in words {
-				try? await Task.sleep(for: .milliseconds(35))
-				answer += (answer.isEmpty ? "" : " ") + word
+			do {
+				let client = ollamaClient()
+				guard await client.checkAvailability() else {
+					isOllamaAvailable = false
+					isAnswering = false
+					return
+				}
+				isOllamaAvailable = true
+
+				let context = articleExcerpt.isEmpty ? articleTitle : articleExcerpt
+				let qa = ArticleQA(client: client, model: selectedModel)
+				let stream = try await qa.ask(question: q, articleText: context)
+				for try await token in stream {
+					answer += token
+				}
+			} catch {
+				errorMessage = error.localizedDescription
 			}
-			isLoading = false
+			isAnswering = false
 		}
 	}
 
@@ -332,116 +646,137 @@ struct OllamaArticlePanel: View {
 		UIPasteboard.general.string = text
 		#endif
 	}
-}
 
-// MARK: - Supporting Views
+	private func copySummary(_ text: String) {
+		copyToClipboard(text)
+		didCopySummary = true
+		DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+			didCopySummary = false
+		}
+	}
 
-private enum PanelTab {
-	case summary, tags, ask
-}
-
-private struct TagChip: View {
-	let tag: String
-
-	var body: some View {
-		Text(tag)
-			.font(.caption)
-			.padding(.horizontal, 10)
-			.padding(.vertical, 4)
-			.background(.blue.opacity(0.1))
-			.foregroundStyle(.blue)
-			.clipShape(Capsule())
-			.overlay(Capsule().stroke(.blue.opacity(0.2)))
+	private func copyAnswer(_ text: String) {
+		copyToClipboard(text)
+		didCopyAnswer = true
+		DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+			didCopyAnswer = false
+		}
 	}
 }
 
-private struct FlowLayout: Layout {
-	let spacing: CGFloat
+// MARK: - Supporting Types
 
-	func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-		let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
-		return layout(sizes: sizes, proposal: proposal).size
+private enum SummaryLanguage: String, CaseIterable, Identifiable {
+	case english, zhTW, zhCN, japanese, korean, spanish, french, german
+
+	var id: String { rawValue }
+
+	var label: String {
+		switch self {
+		case .english: "English"
+		case .zhTW: "繁體中文"
+		case .zhCN: "简体中文"
+		case .japanese: "日本語"
+		case .korean: "한국어"
+		case .spanish: "Español"
+		case .french: "Français"
+		case .german: "Deutsch"
+		}
 	}
 
-	func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-		let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
-		let positions = layout(sizes: sizes, proposal: proposal).positions
+	var flag: String {
+		switch self {
+		case .english: "🇺🇸"
+		case .zhTW: "🇹🇼"
+		case .zhCN: "🇨🇳"
+		case .japanese: "🇯🇵"
+		case .korean: "🇰🇷"
+		case .spanish: "🇪🇸"
+		case .french: "🇫🇷"
+		case .german: "🇩🇪"
+		}
+	}
 
-		for (index, subview) in subviews.enumerated() {
-			subview.place(
-				at: CGPoint(x: bounds.minX + positions[index].x, y: bounds.minY + positions[index].y),
-				proposal: .unspecified
+	var shortLabel: String {
+		switch self {
+		case .english: "EN"
+		case .zhTW: "繁中"
+		case .zhCN: "简中"
+		case .japanese: "JP"
+		case .korean: "KR"
+		case .spanish: "ES"
+		case .french: "FR"
+		case .german: "DE"
+		}
+	}
+}
+
+private enum ModelFit {
+	case ideal, ok, heavy
+	var label: String {
+		switch self {
+		case .ideal: "Ideal"
+		case .ok: "OK"
+		case .heavy: "Heavy"
+		}
+	}
+	var color: Color {
+		switch self {
+		case .ideal: .green
+		case .ok: .orange
+		case .heavy: .red
+		}
+	}
+	var sortOrder: Int {
+		switch self {
+		case .ideal: 0
+		case .ok: 1
+		case .heavy: 2
+		}
+	}
+}
+
+// MARK: - Shimmer
+
+private struct ShimmerModifier: ViewModifier {
+	@State private var phase: CGFloat = 0
+	func body(content: Content) -> some View {
+		content
+			.overlay(
+				LinearGradient(colors: [.clear, .white.opacity(0.3), .clear], startPoint: .leading, endPoint: .trailing)
+					.offset(x: phase)
+					.mask(content)
 			)
-		}
-	}
-
-	private func layout(sizes: [CGSize], proposal: ProposedViewSize) -> (size: CGSize, positions: [CGPoint]) {
-		let maxWidth = proposal.width ?? .infinity
-		var positions = [CGPoint]()
-		var x: CGFloat = 0
-		var y: CGFloat = 0
-		var rowHeight: CGFloat = 0
-
-		for size in sizes {
-			if x + size.width > maxWidth && x > 0 {
-				x = 0
-				y += rowHeight + spacing
-				rowHeight = 0
+			.onAppear {
+				withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+					phase = 300
+				}
 			}
-			positions.append(CGPoint(x: x, y: y))
-			rowHeight = max(rowHeight, size.height)
-			x += size.width + spacing
-		}
-
-		return (CGSize(width: maxWidth, height: y + rowHeight), positions)
 	}
+}
+
+private extension View {
+	func shimmering() -> some View { modifier(ShimmerModifier()) }
 }
 
 // MARK: - Previews
 
-#Preview("Ollama Panel - Summary") {
-	OllamaArticlePanel(
-		articleTitle: "AI Coding Tools Are Changing How We Review Code",
-		articleExcerpt: "A deep dive into how LLM-powered development tools affect code quality..."
-	)
-	.frame(height: 300)
-	.padding()
+#Preview("Collapsed") {
+	HStack(spacing: 0) {
+		Color.gray.opacity(0.05).frame(maxWidth: .infinity)
+		OllamaArticlePanel(articleTitle: "AI Tools", articleExcerpt: "...", panelState: OllamaPanelState())
+	}
+	.frame(width: 700, height: 500)
 }
 
-#Preview("Ollama Panel - Wide") {
-	OllamaArticlePanel(
-		articleTitle: "The Future of RSS in an AI World",
-		articleExcerpt: "RSS feeds remain the best way to consume information..."
-	)
-	.frame(width: 600, height: 280)
-	.padding()
-}
-
-#Preview("Article Detail + Ollama Panel") {
-	VStack(spacing: 0) {
-		// Simulated article content
-		ScrollView {
-			VStack(alignment: .leading, spacing: 16) {
-				Text("AI Coding Tools Are Changing How We Review Code")
-					.font(.title.bold())
-				Text("By Jane Smith, March 2026")
-					.font(.subheadline)
-					.foregroundStyle(.secondary)
-				Text("The rapid proliferation of AI-powered coding assistants has fundamentally altered the landscape of software development. While these tools promise increased productivity and faster iteration cycles, they also introduce new challenges for code review processes that most teams are not yet equipped to handle.\n\nIn this article, we examine how leading engineering teams are adapting their review practices to account for AI-generated code, including new types of bugs, architectural drift, and the importance of maintaining human oversight.")
-					.font(.body)
-			}
-			.padding()
-		}
-		.frame(height: 250)
-
-		Divider()
-
-		// Ollama panel below article
+#Preview("Expanded") {
+	HStack(spacing: 0) {
+		Color.gray.opacity(0.05).frame(maxWidth: .infinity)
 		OllamaArticlePanel(
 			articleTitle: "AI Coding Tools Are Changing How We Review Code",
-			articleExcerpt: "The rapid proliferation of AI-powered coding assistants..."
+			articleExcerpt: "The rapid proliferation of AI-powered coding assistants...",
+			panelState: { let s = OllamaPanelState(); s.isExpanded = true; return s }()
 		)
-		.frame(height: 280)
 	}
-	.frame(width: 600, height: 540)
+	.frame(width: 700, height: 500)
 }

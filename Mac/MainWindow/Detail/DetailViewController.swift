@@ -82,6 +82,13 @@ final class DetailViewController: NSViewController, WKUIDelegate {
 		case .search:
 			detailStateForSearch = state
 		}
+
+		// Reset Ollama panel for the new article
+		if case .article(let article, _) = state {
+			updateOllamaPanel(for: article)
+		} else if case .extracted(let article, _, _) = state {
+			updateOllamaPanel(for: article)
+		}
 	}
 
 	func showDetail(for mode: TimelineSourceMode) {
@@ -108,45 +115,44 @@ final class DetailViewController: NSViewController, WKUIDelegate {
 		currentWebViewController.scrollPageUp(sender)
 	}
 
-	// MARK: - Ollama Panel
+	// MARK: - Ollama Sidebar
 
-	private var ollamaPanelController: NSHostingController<OllamaArticlePanel>?
-	private var ollamaPanelHeightConstraint: NSLayoutConstraint?
+	private var ollamaSidebarController: NSHostingController<OllamaArticlePanel>?
+	private let ollamaPanelState = OllamaPanelState()
 
 	func toggleOllamaPanel(for article: Article?) {
-		if ollamaPanelController != nil {
-			hideOllamaPanel()
-		} else {
-			showOllamaPanel(for: article)
+		if ollamaSidebarController == nil {
+			embedOllamaSidebar(for: article)
+		}
+		withAnimation(.easeInOut(duration: 0.25)) {
+			ollamaPanelState.isExpanded.toggle()
 		}
 	}
 
-	private func showOllamaPanel(for article: Article?) {
-		let title = article?.title ?? ""
-		let excerpt = article?.contentHTML?.prefix(200).description ?? article?.summary?.prefix(200).description ?? ""
+	private func embedOllamaSidebar(for article: Article?) {
+		// Remove old sidebar
+		containerView.setSidebarView(nil)
+		ollamaSidebarController = nil
 
-		let panel = OllamaArticlePanel(articleTitle: title, articleExcerpt: excerpt)
+		let title = article?.title ?? ""
+		let htmlContent = article?.contentHTML ?? article?.summary ?? ""
+		let plainText = htmlContent.strippingHTML()
+		let excerpt = String(plainText.prefix(4000))
+
+		let panel = OllamaArticlePanel(articleTitle: title, articleExcerpt: excerpt, panelState: ollamaPanelState)
 		let hosting = NSHostingController(rootView: panel)
 		hosting.view.translatesAutoresizingMaskIntoConstraints = false
+		hosting.sizingOptions = .intrinsicContentSize
 
-		containerView.addSubview(hosting.view)
-
-		let heightConstraint = hosting.view.heightAnchor.constraint(equalToConstant: 260)
-		NSLayoutConstraint.activate([
-			hosting.view.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-			hosting.view.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-			hosting.view.bottomAnchor.constraint(equalTo: statusBarView.topAnchor),
-			heightConstraint
-		])
-
-		ollamaPanelController = hosting
-		ollamaPanelHeightConstraint = heightConstraint
+		containerView.setSidebarView(hosting.view)
+		ollamaSidebarController = hosting
 	}
 
-	private func hideOllamaPanel() {
-		ollamaPanelController?.view.removeFromSuperview()
-		ollamaPanelController = nil
-		ollamaPanelHeightConstraint = nil
+	/// Called when article selection changes to reset the sidebar.
+	func updateOllamaPanel(for article: Article?) {
+		let wasExpanded = ollamaPanelState.isExpanded
+		embedOllamaSidebar(for: article)
+		ollamaPanelState.isExpanded = wasExpanded
 	}
 
 	// MARK: - Navigation

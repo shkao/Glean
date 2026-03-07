@@ -8,7 +8,7 @@ public struct OllamaSettings: Codable, Sendable {
 
   public init(
     baseURL: String = "http://localhost:11434",
-    preferredModel: String = "llama3.2"
+    preferredModel: String = "qwen2.5:3b"
   ) {
     self.baseURL = baseURL
     self.preferredModel = preferredModel

@@ -630,7 +630,8 @@ private extension WebViewController {
 
 	func startArticleExtractor() {
 		guard articleExtractor == nil else { return }
-		if let link = article?.preferredLink, let extractor = ArticleExtractor(link, delegate: self) {
+		if let link = article?.preferredLink {
+			let extractor = ArticleExtractor(link, delegate: self)
 			extractor.process()
 			articleExtractor = extractor
 			articleExtractorButtonState = .animated

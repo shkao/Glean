@@ -26,14 +26,73 @@ final class DetailContainerView: NSView {
 			contentViewConstraints = nil
 			oldValue?.removeFromSuperviewWithoutNeedingDisplay()
 
-			if let contentView = contentView {
+			if let contentView {
 				contentView.translatesAutoresizingMaskIntoConstraints = false
 				addSubview(contentView, positioned: .below, relativeTo: detailStatusBarView)
-				let constraints = constraintsToMakeSubViewFullSize(contentView)
-				NSLayoutConstraint.activate(constraints)
-				contentViewConstraints = constraints
+				relayoutContent()
 			}
 		}
+	}
+
+	// MARK: - Sidebar
+
+	private var sidebarView: NSView?
+	private var sidebarConstraints: [NSLayoutConstraint]?
+
+	/// Adds or replaces the sidebar view on the right edge.
+	func setSidebarView(_ sidebar: NSView?) {
+		// Remove old sidebar
+		if let old = sidebarView {
+			if let sc = sidebarConstraints {
+				NSLayoutConstraint.deactivate(sc)
+			}
+			old.removeFromSuperview()
+			sidebarConstraints = nil
+			sidebarView = nil
+		}
+
+		guard let sidebar else {
+			relayoutContent()
+			return
+		}
+
+		sidebar.translatesAutoresizingMaskIntoConstraints = false
+		addSubview(sidebar)
+		sidebarView = sidebar
+
+		let sc = [
+			sidebar.topAnchor.constraint(equalTo: topAnchor),
+			sidebar.trailingAnchor.constraint(equalTo: trailingAnchor),
+			sidebar.bottomAnchor.constraint(equalTo: detailStatusBarView.topAnchor),
+		]
+		NSLayoutConstraint.activate(sc)
+		sidebarConstraints = sc
+
+		relayoutContent()
+	}
+
+	private func relayoutContent() {
+		if let currentConstraints = contentViewConstraints {
+			NSLayoutConstraint.deactivate(currentConstraints)
+			contentViewConstraints = nil
+		}
+
+		guard let contentView else { return }
+
+		var constraints = [
+			contentView.leadingAnchor.constraint(equalTo: leadingAnchor),
+			contentView.topAnchor.constraint(equalTo: topAnchor),
+			contentView.bottomAnchor.constraint(equalTo: bottomAnchor),
+		]
+
+		if let sidebarView {
+			constraints.append(contentView.trailingAnchor.constraint(equalTo: sidebarView.leadingAnchor))
+		} else {
+			constraints.append(contentView.trailingAnchor.constraint(equalTo: trailingAnchor))
+		}
+
+		NSLayoutConstraint.activate(constraints)
+		contentViewConstraints = constraints
 	}
 
 	override func draw(_ dirtyRect: NSRect) {
