@@ -308,7 +308,10 @@ private extension WebContentExtractor {
 					'Check for updates',
 					'Access through your institution', 'Buy or subscribe',
 					'Access options', 'Buy this article', 'Subscribe to this journal',
-					'Rent or buy this article', 'Get access', 'Log in through your institution'
+					'Rent or buy this article', 'Get access', 'Log in through your institution',
+					'Funding', 'Funding information', 'Financial support',
+					'Conflicts of interest', 'Conflict of interest',
+					'Declaration of interests', 'Declarations of interest'
 				];
 
 				// Find headings that match and remove them plus following content

@@ -639,16 +639,20 @@ extension MainWindowController: TimelineContainerViewControllerDelegate {
 
 		let detailState: DetailState
 		if let articles = articles {
-			if articles.count == 1 {
-				activityManager.reading(feed: nil, article: articles.first)
-				let shouldAutoExtract = articles.first?.feed?.isArticleExtractorAlwaysOn ?? false
-				let lacksFullContent = articles.first?.contentHTML == nil || (articles.first?.contentHTML?.count ?? 0) < 500
-				if shouldAutoExtract || lacksFullContent {
+			if articles.count == 1, let article = articles.first {
+				activityManager.reading(feed: nil, article: article)
+				let shouldAutoExtract = article.feed?.isArticleExtractorAlwaysOn ?? false
+				if shouldAutoExtract {
 					detailState = .loading
 					startArticleExtractorForCurrentLink()
 				} else {
-					detailState = .article(articles.first!, restoreArticleWindowScrollY)
+					detailState = .article(article, restoreArticleWindowScrollY)
 					restoreArticleWindowScrollY = nil
+					// Auto-extract in background for articles with minimal content
+					let lacksFullContent = article.contentHTML == nil || (article.contentHTML?.count ?? 0) < 500
+					if lacksFullContent {
+						startArticleExtractorForCurrentLink()
+					}
 				}
 			} else {
 				detailState = .multipleSelection

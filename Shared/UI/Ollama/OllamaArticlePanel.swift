@@ -595,9 +595,8 @@ struct OllamaArticlePanel: View {
 				isOllamaAvailable = true
 
 				let summarizer = ArticleSummarizer(client: client, model: selectedModel)
-				let text = articleExcerpt.isEmpty ? articleTitle : articleExcerpt
 				let langCode = SummaryLanguageCode(rawValue: summaryLanguage.rawValue) ?? .english
-				let stream = try await summarizer.summarize(articleText: text, language: langCode)
+				let stream = try await summarizer.summarize(articleText: articleExcerpt, title: articleTitle, language: langCode)
 				for try await token in stream {
 					summary += token
 				}

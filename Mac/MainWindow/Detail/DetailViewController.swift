@@ -137,7 +137,7 @@ final class DetailViewController: NSViewController, WKUIDelegate {
 		let title = article?.title ?? ""
 		let htmlContent = extractedContent ?? article?.contentHTML ?? article?.summary ?? ""
 		let plainText = htmlContent.strippingHTML()
-		let excerpt = String(plainText.prefix(4000))
+		let excerpt = String(plainText.prefix(8000))
 
 		let panel = OllamaArticlePanel(articleTitle: title, articleExcerpt: excerpt, panelState: ollamaPanelState)
 		let hosting = NSHostingController(rootView: panel)
