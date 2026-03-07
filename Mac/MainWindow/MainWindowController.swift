@@ -417,6 +417,10 @@ final class MainWindowController: NSWindowController, NSUserInterfaceValidations
 		currentTimelineViewController?.toggleStarredStatusForSelectedArticles()
 	}
 
+	@IBAction func toggleOllamaPanel(_ sender: Any?) {
+		detailViewController?.toggleOllamaPanel(for: oneSelectedArticle)
+	}
+
 	@IBAction func toggleArticleExtractor(_ sender: Any?) {
 
 		guard let currentLink = currentLink, let article = oneSelectedArticle else {
@@ -789,6 +793,7 @@ extension NSToolbarItem.Identifier {
 	static let share = NSToolbarItem.Identifier("share")
 	static let articleThemeMenu = NSToolbarItem.Identifier("articleThemeMenu")
 	static let cleanUp = NSToolbarItem.Identifier("cleanUp")
+	static let ollamaPanel = NSToolbarItem.Identifier("ollamaPanel")
 }
 
 extension MainWindowController: NSToolbarDelegate {
@@ -870,6 +875,10 @@ extension MainWindowController: NSToolbarDelegate {
 			let title = NSLocalizedString("Clean Up", comment: "Clean Up")
 			return buildToolbarButton(.cleanUp, title, Assets.Images.cleanUp, "cleanUp:")
 
+		case .ollamaPanel:
+			let title = NSLocalizedString("Ollama", comment: "Ollama")
+			return buildToolbarButton(.ollamaPanel, title, NSImage(systemSymbolName: "brain", accessibilityDescription: "Ollama")!, "toggleOllamaPanel:")
+
 		default:
 			break
 		}
@@ -895,7 +904,8 @@ extension MainWindowController: NSToolbarDelegate {
 			.share,
 			.articleThemeMenu,
 			.search,
-			.cleanUp
+			.cleanUp,
+			.ollamaPanel
 		]
 	}
 

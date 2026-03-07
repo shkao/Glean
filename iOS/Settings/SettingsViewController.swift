@@ -16,6 +16,8 @@ import Account
 
 final class SettingsViewController: UITableViewController {
 
+	private let ollamaSection = 7
+
 	private weak var opmlAccount: Account?
 
 	@IBOutlet var timelineSortOrderSwitch: UISwitch!
@@ -119,6 +121,10 @@ final class SettingsViewController: UITableViewController {
 
 	// MARK: UITableView
 
+	override func numberOfSections(in tableView: UITableView) -> Int {
+		return super.numberOfSections(in: tableView) + 1
+	}
+
 	override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
 
 		switch section {
@@ -132,6 +138,8 @@ final class SettingsViewController: UITableViewController {
 			return defaultNumberOfRows
 		case 4:
 			return traitCollection.userInterfaceIdiom == .phone ? 5 : 4
+		case ollamaSection:
+			return 1
 		default:
 			return super.tableView(tableView, numberOfRowsInSection: section)
 		}
@@ -155,12 +163,27 @@ final class SettingsViewController: UITableViewController {
 				acctCell.comboNameLabel?.text = account.nameForDisplay
 				cell = acctCell
 			}
+		case ollamaSection:
+			let ollamaCell = UITableViewCell(style: .default, reuseIdentifier: nil)
+			var content = ollamaCell.defaultContentConfiguration()
+			content.text = NSLocalizedString("Ollama", comment: "Ollama")
+			content.image = UIImage(systemName: "brain")
+			ollamaCell.contentConfiguration = content
+			ollamaCell.accessoryType = .disclosureIndicator
+			cell = ollamaCell
 		default:
 			cell = super.tableView(tableView, cellForRowAt: indexPath)
 
 		}
 
 		return cell
+	}
+
+	override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+		if section == ollamaSection {
+			return NSLocalizedString("AI", comment: "AI section header")
+		}
+		return super.tableView(tableView, titleForHeaderInSection: section)
 	}
 
 	override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
@@ -238,6 +261,9 @@ final class SettingsViewController: UITableViewController {
 			default:
 				break
 			}
+		case ollamaSection:
+			let hosting = UIHostingController(rootView: NavigationStack { OllamaSettingsView() })
+			self.navigationController?.pushViewController(hosting, animated: true)
 		default:
 			tableView.selectRow(at: nil, animated: true, scrollPosition: .none)
 		}
@@ -256,10 +282,16 @@ final class SettingsViewController: UITableViewController {
 	}
 
 	override func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-		return UITableView.automaticDimension
+		if indexPath.section == ollamaSection {
+			return UITableView.automaticDimension
+		}
+		return super.tableView(tableView, heightForRowAt: indexPath)
 	}
 
 	override func tableView(_ tableView: UITableView, indentationLevelForRowAt indexPath: IndexPath) -> Int {
+		if indexPath.section == ollamaSection {
+			return 0
+		}
 		return super.tableView(tableView, indentationLevelForRowAt: IndexPath(row: 0, section: 1))
 	}
 

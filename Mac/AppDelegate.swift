@@ -17,6 +17,7 @@ import RSWeb
 import Secrets
 import CrashReporter
 import Sparkle
+import SwiftUI
 
 let appName = "NetNewsWire"
 
@@ -596,6 +597,20 @@ let appName = "NetNewsWire"
 
 		exportOPMLController = ExportOPMLWindowController()
 		exportOPMLController?.runSheetOnWindow(windowController.window!)
+	}
+
+	@IBAction func importFromScreenshots(_ sender: Any?) {
+		let windowController = createAndShowMainWindowIfNecessary()
+		guard let window = windowController.window else { return }
+		let hostingController = NSHostingController(rootView: ImportScreenshotView())
+		window.contentViewController?.presentAsSheet(hostingController)
+	}
+
+	@IBAction func importFromURLs(_ sender: Any?) {
+		let windowController = createAndShowMainWindowIfNecessary()
+		guard let window = windowController.window else { return }
+		let hostingController = NSHostingController(rootView: ImportURLsView())
+		window.contentViewController?.presentAsSheet(hostingController)
 	}
 
 	@IBAction func addAppNews(_ sender: Any?) {

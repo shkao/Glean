@@ -8,6 +8,7 @@
 
 import Foundation
 import WebKit
+import SwiftUI
 import RSCore
 import Articles
 import RSWeb
@@ -105,6 +106,47 @@ final class DetailViewController: NSViewController, WKUIDelegate {
 
 	override func scrollPageUp(_ sender: Any?) {
 		currentWebViewController.scrollPageUp(sender)
+	}
+
+	// MARK: - Ollama Panel
+
+	private var ollamaPanelController: NSHostingController<OllamaArticlePanel>?
+	private var ollamaPanelHeightConstraint: NSLayoutConstraint?
+
+	func toggleOllamaPanel(for article: Article?) {
+		if ollamaPanelController != nil {
+			hideOllamaPanel()
+		} else {
+			showOllamaPanel(for: article)
+		}
+	}
+
+	private func showOllamaPanel(for article: Article?) {
+		let title = article?.title ?? ""
+		let excerpt = article?.contentHTML?.prefix(200).description ?? article?.summary?.prefix(200).description ?? ""
+
+		let panel = OllamaArticlePanel(articleTitle: title, articleExcerpt: excerpt)
+		let hosting = NSHostingController(rootView: panel)
+		hosting.view.translatesAutoresizingMaskIntoConstraints = false
+
+		containerView.addSubview(hosting.view)
+
+		let heightConstraint = hosting.view.heightAnchor.constraint(equalToConstant: 260)
+		NSLayoutConstraint.activate([
+			hosting.view.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+			hosting.view.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+			hosting.view.bottomAnchor.constraint(equalTo: statusBarView.topAnchor),
+			heightConstraint
+		])
+
+		ollamaPanelController = hosting
+		ollamaPanelHeightConstraint = heightConstraint
+	}
+
+	private func hideOllamaPanel() {
+		ollamaPanelController?.view.removeFromSuperview()
+		ollamaPanelController = nil
+		ollamaPanelHeightConstraint = nil
 	}
 
 	// MARK: - Navigation

@@ -7,6 +7,7 @@
 //
 
 import AppKit
+import SwiftUI
 
 private struct PreferencesToolbarItemSpec {
 
@@ -24,6 +25,7 @@ private struct PreferencesToolbarItemSpec {
 private struct ToolbarItemIdentifier {
 	static let General = "General"
 	static let Accounts = "Accounts"
+	static let Ollama = "Ollama"
 	static let Advanced = "Advanced"
 }
 
@@ -39,6 +41,9 @@ final class PreferencesWindowController: NSWindowController, NSToolbarDelegate {
 		specs += [PreferencesToolbarItemSpec(identifierRawValue: ToolbarItemIdentifier.Accounts,
 											 name: NSLocalizedString("Accounts", comment: "Preferences"),
 											 image: Assets.Images.preferencesToolbarAccounts)]
+		specs += [PreferencesToolbarItemSpec(identifierRawValue: ToolbarItemIdentifier.Ollama,
+											 name: NSLocalizedString("Ollama", comment: "Preferences"),
+											 image: Assets.Images.preferencesToolbarOllama)]
 		specs += [PreferencesToolbarItemSpec(identifierRawValue: ToolbarItemIdentifier.Advanced,
 											 name: NSLocalizedString("Advanced", comment: "Preferences"),
 											 image: Assets.Images.preferencesToolbarAdvanced)]
@@ -152,10 +157,19 @@ private extension PreferencesWindowController {
 			return cachedViewController
 		}
 
-		let storyboard = NSStoryboard(name: NSStoryboard.Name("Preferences"), bundle: nil)
-		guard let viewController = storyboard.instantiateController(withIdentifier: NSStoryboard.SceneIdentifier(identifier)) as? NSViewController else {
-			assertionFailure("Unknown preferences view controller: \(identifier)")
-			return nil
+		let viewController: NSViewController
+
+		if identifier == ToolbarItemIdentifier.Ollama {
+			let hostingController = NSHostingController(rootView: OllamaSettingsView())
+			hostingController.view.frame = NSRect(x: 0, y: 0, width: 512, height: 300)
+			viewController = hostingController
+		} else {
+			let storyboard = NSStoryboard(name: NSStoryboard.Name("Preferences"), bundle: nil)
+			guard let storyboardVC = storyboard.instantiateController(withIdentifier: NSStoryboard.SceneIdentifier(identifier)) as? NSViewController else {
+				assertionFailure("Unknown preferences view controller: \(identifier)")
+				return nil
+			}
+			viewController = storyboardVC
 		}
 
 		viewControllers[identifier] = viewController
