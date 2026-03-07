@@ -418,7 +418,8 @@ final class MainWindowController: NSWindowController, NSUserInterfaceValidations
 	}
 
 	@IBAction func toggleOllamaPanel(_ sender: Any?) {
-		detailViewController?.toggleOllamaPanel(for: oneSelectedArticle)
+		let extractedContent = isShowingExtractedArticle ? articleExtractor?.article?.content : nil
+		detailViewController?.toggleOllamaPanel(for: oneSelectedArticle, extractedContent: extractedContent)
 	}
 
 	@IBAction func toggleArticleExtractor(_ sender: Any?) {

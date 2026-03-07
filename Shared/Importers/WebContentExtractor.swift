@@ -276,6 +276,15 @@ private extension WebContentExtractor {
 					'[data-test="recommended-content"]',
 					'.c-article-extras', '.c-latest-content',
 
+					// Paywall, access, purchase blocks
+					'.c-article-access-provider', '.c-article-buy-box',
+					'.buying-options', '.access-options', '.buy-box',
+					'.paywall', '.subscription-prompt', '.access-through',
+					'[data-test="access-article"]', '[data-component="buy-box"]',
+					'[data-test="buy-box"]', '.c-article-body__paywall',
+					'.springer-nature-buy-box', '.institution-access',
+					'.c-article-access-options',
+
 					// Generic: acknowledgements, footnotes, appendix
 					'.acknowledgements', '.acknowledgments', '.footnotes',
 					'.appendix', '.supplementary-material'
@@ -296,7 +305,10 @@ private extension WebContentExtractor {
 					'About this article', 'Cite this article',
 					'Download citation', 'Share this article',
 					'Similar content being viewed by others', 'Subjects',
-					'Check for updates'
+					'Check for updates',
+					'Access through your institution', 'Buy or subscribe',
+					'Access options', 'Buy this article', 'Subscribe to this journal',
+					'Rent or buy this article', 'Get access', 'Log in through your institution'
 				];
 
 				// Find headings that match and remove them plus following content

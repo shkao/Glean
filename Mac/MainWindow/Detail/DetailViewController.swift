@@ -85,9 +85,9 @@ final class DetailViewController: NSViewController, WKUIDelegate {
 
 		// Reset Ollama panel for the new article
 		if case .article(let article, _) = state {
-			updateOllamaPanel(for: article)
-		} else if case .extracted(let article, _, _) = state {
-			updateOllamaPanel(for: article)
+			updateOllamaPanel(for: article, extractedContent: nil)
+		} else if case .extracted(let article, let extracted, _) = state {
+			updateOllamaPanel(for: article, extractedContent: extracted.content)
 		}
 	}
 
@@ -120,22 +120,22 @@ final class DetailViewController: NSViewController, WKUIDelegate {
 	private var ollamaSidebarController: NSHostingController<OllamaArticlePanel>?
 	private let ollamaPanelState = OllamaPanelState()
 
-	func toggleOllamaPanel(for article: Article?) {
+	func toggleOllamaPanel(for article: Article?, extractedContent: String? = nil) {
 		if ollamaSidebarController == nil {
-			embedOllamaSidebar(for: article)
+			embedOllamaSidebar(for: article, extractedContent: extractedContent)
 		}
 		withAnimation(.easeInOut(duration: 0.25)) {
 			ollamaPanelState.isExpanded.toggle()
 		}
 	}
 
-	private func embedOllamaSidebar(for article: Article?) {
+	private func embedOllamaSidebar(for article: Article?, extractedContent: String? = nil) {
 		// Remove old sidebar
 		containerView.setSidebarView(nil)
 		ollamaSidebarController = nil
 
 		let title = article?.title ?? ""
-		let htmlContent = article?.contentHTML ?? article?.summary ?? ""
+		let htmlContent = extractedContent ?? article?.contentHTML ?? article?.summary ?? ""
 		let plainText = htmlContent.strippingHTML()
 		let excerpt = String(plainText.prefix(4000))
 
@@ -149,9 +149,9 @@ final class DetailViewController: NSViewController, WKUIDelegate {
 	}
 
 	/// Called when article selection changes to reset the sidebar.
-	func updateOllamaPanel(for article: Article?) {
+	func updateOllamaPanel(for article: Article?, extractedContent: String? = nil) {
 		let wasExpanded = ollamaPanelState.isExpanded
-		embedOllamaSidebar(for: article)
+		embedOllamaSidebar(for: article, extractedContent: extractedContent)
 		ollamaPanelState.isExpanded = wasExpanded
 	}
 
