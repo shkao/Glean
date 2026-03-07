@@ -19,7 +19,7 @@ import CrashReporter
 import Sparkle
 import SwiftUI
 
-let appName = "NetNewsWire"
+let appName = "Glean"
 
 @MainActor var appDelegate: AppDelegate!
 
@@ -601,23 +601,39 @@ let appName = "NetNewsWire"
 
 	@IBAction func importFromScreenshots(_ sender: Any?) {
 		let windowController = createAndShowMainWindowIfNecessary()
-		guard let window = windowController.window else { return }
-		let hostingController = NSHostingController(rootView: ImportScreenshotView())
-		window.contentViewController?.presentAsSheet(hostingController)
+		guard let window = windowController.window,
+			  let contentVC = window.contentViewController else {
+			return
+		}
+		let hostingController = NSHostingController(rootView: ImportScreenshotView(onDismiss: { [weak window] in
+			guard let sheet = window?.attachedSheet else {
+				return
+			}
+			window?.endSheet(sheet)
+		}))
+		contentVC.presentAsSheet(hostingController)
 	}
 
 	@IBAction func importFromURLs(_ sender: Any?) {
 		let windowController = createAndShowMainWindowIfNecessary()
-		guard let window = windowController.window else { return }
-		let hostingController = NSHostingController(rootView: ImportURLsView())
-		window.contentViewController?.presentAsSheet(hostingController)
+		guard let window = windowController.window,
+			  let contentVC = window.contentViewController else {
+			return
+		}
+		let hostingController = NSHostingController(rootView: ImportURLsView(onDismiss: { [weak window] in
+			guard let sheet = window?.attachedSheet else {
+				return
+			}
+			window?.endSheet(sheet)
+		}))
+		contentVC.presentAsSheet(hostingController)
 	}
 
 	@IBAction func addAppNews(_ sender: Any?) {
 		if AccountManager.shared.anyAccountHasNetNewsWireNewsSubscription() {
 			return
 		}
-		addFeed(AccountManager.netNewsWireNewsURL, name: "NetNewsWire News")
+		addFeed(AccountManager.netNewsWireNewsURL, name: "Glean News")
 	}
 
 	@IBAction func openWebsite(_ sender: Any?) {

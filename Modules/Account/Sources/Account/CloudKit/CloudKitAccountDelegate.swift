@@ -35,7 +35,9 @@ enum CloudKitAccountDelegateError: LocalizedError, Sendable {
 	private let syncDatabase: SyncDatabase
 
 	private let container: CKContainer = {
-		let orgID = Bundle.main.object(forInfoDictionaryKey: "OrganizationIdentifier") as! String
+		guard let orgID = Bundle.main.object(forInfoDictionaryKey: "OrganizationIdentifier") as? String else {
+			return CKContainer.default()
+		}
 		return CKContainer(identifier: "iCloud.\(orgID).NetNewsWire")
 	}()
 
