@@ -210,6 +210,8 @@ final class AddAccountViewController: UITableViewController, AddAccountDismissDe
 			addViewController.accountType = accountType
 			addViewController.delegate = self
 			present(navController, animated: true)
+		case .savedPages:
+			break
 		}
 	}
 

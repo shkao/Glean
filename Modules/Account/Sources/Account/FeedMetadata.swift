@@ -14,7 +14,7 @@ import Articles
 	func valueDidChange(_ feedMetadata: FeedMetadata, key: FeedMetadata.CodingKeys)
 }
 
-@MainActor final class FeedMetadata: Codable {
+@MainActor final class FeedMetadata: @MainActor Codable {
 	enum CodingKeys: String, CodingKey {
 		case feedID
 		case homePageURL

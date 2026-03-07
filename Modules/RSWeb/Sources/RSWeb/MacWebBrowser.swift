@@ -145,12 +145,8 @@ import UniformTypeIdentifiers
 
 extension MacWebBrowser: CustomDebugStringConvertible {
 
-	public var debugDescription: String {
-		if let name, let bundleIdentifier {
-			return "MacWebBrowser: \(name) (\(bundleIdentifier))"
-		} else {
-			return "MacWebBrowser"
-		}
+	nonisolated public var debugDescription: String {
+		return "MacWebBrowser: \(url)"
 	}
 }
 

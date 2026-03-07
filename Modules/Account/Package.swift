@@ -40,6 +40,7 @@ let package = Package(
 				"NewsBlur"
 			],
 			swiftSettings: [
+				.swiftLanguageMode(.v5),
 				.enableUpcomingFeature("NonisolatedNonsendingByDefault"),
 				.enableUpcomingFeature("InferIsolatedConformances")
 			]

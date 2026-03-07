@@ -53,10 +53,11 @@ final class GeneralPreferencesViewController: NSViewController {
 	}
 
 	@IBAction func articleThemePopUpDidChange(_ sender: Any) {
-		guard let menuItem = articleThemePopup.selectedItem else {
+		guard let menuItem: NSMenuItem = articleThemePopup.selectedItem else {
 			return
 		}
-		ArticleThemesManager.shared.currentThemeName = menuItem.title
+		let manager = ArticleThemesManager.shared
+		manager.currentThemeName = menuItem.title
 		updateArticleThemePopup()
 	}
 

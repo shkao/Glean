@@ -137,7 +137,8 @@ private extension AddFeedWindowController {
 	}
 
 	func selectedContainer() -> Container? {
-		guard folderPopupButton.selectedItem?.isEnabled ?? false else { return nil }
-		return folderPopupButton.selectedItem?.representedObject as? Container
+		let item: NSMenuItem? = folderPopupButton.selectedItem
+		guard item?.isEnabled ?? false else { return nil }
+		return item?.representedObject as? Container
 	}
 }
