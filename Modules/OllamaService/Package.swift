@@ -17,6 +17,10 @@ let package = Package(
   targets: [
     .target(
       name: "OllamaService"
+    ),
+    .testTarget(
+      name: "OllamaServiceTests",
+      dependencies: ["OllamaService"]
     )
   ]
 )
