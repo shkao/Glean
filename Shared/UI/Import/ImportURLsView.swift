@@ -6,32 +6,41 @@
 //
 
 import SwiftUI
+import Account
 
 struct ImportURLsView: View {
 
+	@Environment(\.dismiss) private var dismiss
+	var onDismiss: (() -> Void)?
 	@State private var inputText = ""
 	@State private var extractedURLs: [URL] = []
 	@State private var isImporting = false
+	@State private var importProgress = 0
+	@State private var importTotal = 0
 	@State private var importResult: ImportResult?
 
 	var body: some View {
-		NavigationStack {
-			VStack(spacing: 0) {
-				if let result = importResult {
-					resultView(result)
-				} else {
-					inputAndPreview
-				}
+		VStack(spacing: 0) {
+			HStack {
+				Button("Cancel") { close() }
+					.buttonStyle(.borderless)
+				Spacer()
+				Text("Import URLs")
+					.font(.headline)
+				Spacer()
+				Button("Cancel") { }
+					.buttonStyle(.borderless)
+					.hidden()
 			}
-			.navigationTitle("Import URLs")
-			#if os(iOS)
-			.navigationBarTitleDisplayMode(.inline)
-			.toolbar {
-				ToolbarItem(placement: .cancellationAction) {
-					Button("Cancel") { }
-				}
+			.padding()
+
+			Divider()
+
+			if let result = importResult {
+				resultView(result)
+			} else {
+				inputAndPreview
 			}
-			#endif
 		}
 		#if os(macOS)
 		.frame(width: 500, height: 480)
@@ -115,8 +124,9 @@ struct ImportURLsView: View {
 				if isImporting {
 					ProgressView()
 						.controlSize(.small)
-					Text("Importing...")
+					Text("Importing \(importProgress) of \(importTotal)...")
 						.foregroundStyle(.secondary)
+						.font(.subheadline)
 				} else {
 					Text("\(extractedURLs.count) URLs ready to import")
 						.foregroundStyle(.secondary)
@@ -124,7 +134,7 @@ struct ImportURLsView: View {
 				}
 				Spacer()
 				Button("Import All") {
-					simulateImport()
+					performImport()
 				}
 				.buttonStyle(.borderedProminent)
 				.disabled(extractedURLs.isEmpty || isImporting)
@@ -155,7 +165,7 @@ struct ImportURLsView: View {
 				}
 			}
 
-			Button("Done") { }
+			Button("Done") { close() }
 				.buttonStyle(.borderedProminent)
 				.controlSize(.large)
 
@@ -165,6 +175,14 @@ struct ImportURLsView: View {
 	}
 
 	// MARK: - Actions
+
+	private func close() {
+		if let onDismiss {
+			onDismiss()
+		} else {
+			dismiss()
+		}
+	}
 
 	private func pasteFromClipboard() {
 		#if os(macOS)
@@ -182,13 +200,29 @@ struct ImportURLsView: View {
 		extractedURLs = URLExtractor.extractURLs(from: inputText)
 	}
 
-	private func simulateImport() {
+	private func performImport() {
 		isImporting = true
+		importTotal = extractedURLs.count
+		importProgress = 0
+
 		Task {
-			try? await Task.sleep(for: .seconds(2))
-			importResult = ImportResult(imported: extractedURLs.count, failed: 0)
+			let account = savedPagesAccount()
+			let importer = BulkURLImporter()
+			let result = await importer.importURLs(extractedURLs, to: account, folder: nil) { completed, total in
+				importProgress = completed
+				importTotal = total
+			}
+			importResult = ImportResult(imported: result.imported, failed: result.failed)
 			isImporting = false
 		}
+	}
+
+	private func savedPagesAccount() -> Account {
+		let manager = AccountManager.shared
+		if let existing = manager.activeAccounts.first(where: { $0.type == .savedPages }) {
+			return existing
+		}
+		return manager.createAccount(type: .savedPages)
 	}
 }
 

@@ -9,6 +9,8 @@ import SwiftUI
 
 struct ImportScreenshotView: View {
 
+	@Environment(\.dismiss) private var dismiss
+	var onDismiss: (() -> Void)?
 	@State private var phase: ImportPhase = .selectPhotos
 	@State private var extractedURLs: [ExtractedURL] = []
 	@State private var selectedURLs: Set<String> = []
@@ -16,30 +18,36 @@ struct ImportScreenshotView: View {
 	@State private var progress: Double = 0
 
 	var body: some View {
-		NavigationStack {
-			VStack(spacing: 0) {
-				switch phase {
-				case .selectPhotos:
-					selectPhotosView
-				case .processing:
-					processingView
-				case .reviewURLs:
-					reviewURLsView
-				case .importing:
-					importingView
-				case .done(let count):
-					doneView(count: count)
-				}
+		VStack(spacing: 0) {
+			// Title bar with Cancel
+			HStack {
+				Button("Cancel") { close() }
+					.buttonStyle(.borderless)
+				Spacer()
+				Text("Import from Screenshots")
+					.font(.headline)
+				Spacer()
+				// Balance the Cancel button width
+				Button("Cancel") { }
+					.buttonStyle(.borderless)
+					.hidden()
 			}
-			.navigationTitle("Import from Screenshots")
-			#if os(iOS)
-			.navigationBarTitleDisplayMode(.inline)
-			.toolbar {
-				ToolbarItem(placement: .cancellationAction) {
-					Button("Cancel") { }
-				}
+			.padding()
+
+			Divider()
+
+			switch phase {
+			case .selectPhotos:
+				selectPhotosView
+			case .processing:
+				processingView
+			case .reviewURLs:
+				reviewURLsView
+			case .importing:
+				importingView
+			case .done(let count):
+				doneView(count: count)
 			}
-			#endif
 		}
 		#if os(macOS)
 		.frame(width: 480, height: 520)
@@ -193,13 +201,23 @@ struct ImportScreenshotView: View {
 					.foregroundStyle(.secondary)
 			}
 
-			Button("Done") { }
+			Button("Done") { close() }
 				.buttonStyle(.borderedProminent)
 				.controlSize(.large)
 
 			Spacer()
 		}
 		.padding()
+	}
+
+	// MARK: - Actions
+
+	private func close() {
+		if let onDismiss {
+			onDismiss()
+		} else {
+			dismiss()
+		}
 	}
 
 	// MARK: - Preview Simulation

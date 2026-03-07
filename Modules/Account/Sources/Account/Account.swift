@@ -817,10 +817,10 @@ public enum FetchType {
 		return try await updateAsync(feedID: feed.feedID, parsedItems: parsedItems)
 	}
 
-	@MainActor func updateAsync(feedID: String, parsedItems: Set<ParsedItem>, deleteOlder: Bool = true) async throws -> ArticleChanges {
-		// Used only by an On My Mac or iCloud account.
+	@MainActor public func updateAsync(feedID: String, parsedItems: Set<ParsedItem>, deleteOlder: Bool = true) async throws -> ArticleChanges {
+		// Used by On My Mac, iCloud, or Saved Pages accounts.
 		precondition(Thread.isMainThread)
-		precondition(type == .onMyMac || type == .cloudKit)
+		precondition(type == .onMyMac || type == .cloudKit || type == .savedPages)
 
 		let articleChanges = try await database.updateAsync(parsedItems: parsedItems, feedID: feedID, deleteOlder: deleteOlder)
 		sendNotificationAbout(articleChanges)
