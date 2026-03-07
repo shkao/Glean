@@ -100,7 +100,7 @@ struct OllamaSettingsView: View {
 	}
 
 	private func save() {
-		var settings = OllamaSettings(baseURL: baseURL, preferredModel: preferredModel)
+		let settings = OllamaSettings(baseURL: baseURL, preferredModel: preferredModel)
 		settings.save()
 	}
 }

@@ -209,6 +209,8 @@ struct Assets {
 			return Assets.Images.accountNewsBlur
 		case .theOldReader:
 			return Assets.Images.accountTheOldReader
+		case .savedPages:
+			return RSImage(symbol: "square.and.arrow.down")!
 		}
 	}
 

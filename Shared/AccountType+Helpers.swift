@@ -40,6 +40,8 @@ extension AccountType {
 			return NSLocalizedString("NewsBlur", comment: "Account name")
 		case .theOldReader:
 			return NSLocalizedString("The Old Reader", comment: "Account name")
+		case .savedPages:
+			return NSLocalizedString("Saved Pages", comment: "Account name")
 		}
 	}
 
@@ -73,6 +75,8 @@ extension AccountType {
 			return Image("accountNewsBlur")
 		case .theOldReader:
 			return Image("accountTheOldReader")
+		case .savedPages:
+			return Image(systemName: "square.and.arrow.down")
 		}
 	}
 

@@ -98,6 +98,18 @@
                                                 <action selector="importOPMLFromFile:" target="Ady-hI-5gd" id="eGY-fm-uvK"/>
                                             </connections>
                                         </menuItem>
+                                        <menuItem title="Import from Screenshots…" id="gL3-Kz-8nQ">
+                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                            <connections>
+                                                <action selector="importFromScreenshots:" target="Ady-hI-5gd" id="pR7-Wm-4vT"/>
+                                            </connections>
+                                        </menuItem>
+                                        <menuItem title="Import from URLs…" keyEquivalent="u" id="hN4-Lx-9rS">
+                                            <modifierMask key="keyEquivalentModifierMask" option="YES" command="YES"/>
+                                            <connections>
+                                                <action selector="importFromURLs:" target="Ady-hI-5gd" id="qS8-Xn-5wU"/>
+                                            </connections>
+                                        </menuItem>
                                         <menuItem title="Export Subscriptions…" keyEquivalent="e" id="Xy2-v8-Lj8">
                                             <modifierMask key="keyEquivalentModifierMask" option="YES" command="YES"/>
                                             <connections>

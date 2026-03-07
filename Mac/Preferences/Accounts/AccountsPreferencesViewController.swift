@@ -196,6 +196,9 @@ extension AccountsPreferencesViewController: AccountsPreferencesAddAccountDelega
 			let accountsNewsBlurWindowController = AccountsNewsBlurWindowController()
 			addAccountWindowController = accountsNewsBlurWindowController
 			accountsNewsBlurWindowController.runSheetOnWindow(window)
+
+		case .savedPages:
+			break
 		}
 	}
 
