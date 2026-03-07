@@ -42,6 +42,7 @@ nonisolated public enum AccountType: Int, Codable, Sendable {
 	case inoreader = 21
 	case bazQux = 22
 	case theOldReader = 23
+	case savedPages = 30
 
 	public var isDeveloperRestricted: Bool {
 		return self == .cloudKit || self == .feedbin || self == .feedly || self == .inoreader
@@ -266,6 +267,8 @@ public enum FetchType {
 			self.delegate = ReaderAPIAccountDelegate(dataFolder: dataFolder, transport: transport, variant: .bazQux)
 		case .theOldReader:
 			self.delegate = ReaderAPIAccountDelegate(dataFolder: dataFolder, transport: transport, variant: .theOldReader)
+		case .savedPages:
+			self.delegate = SavedPagesAccountDelegate()
 		}
 
 		self.delegate.accountMetadata = metadata
@@ -275,7 +278,7 @@ public enum FetchType {
 		self.dataFolder = dataFolder
 
 		let databaseFilePath = (dataFolder as NSString).appendingPathComponent("DB.sqlite3")
-		let retentionStyle: ArticlesDatabase.RetentionStyle = (type == .onMyMac || type == .cloudKit) ? .feedBased : .syncSystem
+		let retentionStyle: ArticlesDatabase.RetentionStyle = (type == .onMyMac || type == .cloudKit || type == .savedPages) ? .feedBased : .syncSystem
 		self.database = ArticlesDatabase(databaseFilePath: databaseFilePath, accountID: accountID, retentionStyle: retentionStyle)
 
 		switch type {
@@ -297,6 +300,8 @@ public enum FetchType {
 			defaultName = NSLocalizedString("BazQux", comment: "BazQux")
 		case .theOldReader:
 			defaultName = NSLocalizedString("The Old Reader", comment: "The Old Reader")
+		case .savedPages:
+			defaultName = NSLocalizedString("Saved Pages", comment: "Saved Pages")
 		}
 
 		NotificationCenter.default.addObserver(self, selector: #selector(progressInfoDidChange(_:)), name: .progressInfoDidChange, object: delegate)

@@ -10,7 +10,7 @@
 	<false/>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<string>com.ranchero.NetNewsWire.FeedRefresh</string>
+		<string>com.shkao.Glean.FeedRefresh</string>
 	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
@@ -32,7 +32,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>CFBundleURLName</key>
-			<string>com.ranchero.NetNewsWire-Evergreen.iOS.feed</string>
+			<string>com.shkao.Glean.iOS.feed</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>feed</string>
@@ -43,10 +43,10 @@
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>CFBundleURLName</key>
-			<string>com.ranchero.NetNewsWire-Evergreen.iOS</string>
+			<string>com.shkao.Glean.iOS</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>netnewswire</string>
+				<string>glean</string>
 			</array>
 		</dict>
 	</array>
@@ -90,7 +90,7 @@
 					<key>UISceneConfigurationName</key>
 					<string>Default Configuration</string>
 					<key>UISceneDelegateClassName</key>
-					<string>NetNewsWire.SceneDelegate</string>
+					<string>Glean.SceneDelegate</string>
 					<key>UISceneStoryboardFile</key>
 					<string>Main</string>
 				</dict>
@@ -183,9 +183,9 @@
 				<string>com.apple.package</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>NetNewsWire Theme</string>
+			<string>Glean Theme</string>
 			<key>UTTypeIdentifier</key>
-			<string>com.ranchero.netnewswire.theme</string>
+			<string>com.shkao.glean.theme</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -203,14 +203,14 @@
 				<string>nnwtheme</string>
 			</array>
 			<key>CFBundleTypeName</key>
-			<string>NetNewsWire Theme</string>
+			<string>Glean Theme</string>
 			<key>LSHandlerRank</key>
 			<string>Owner</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>com.ranchero.netnewswire.theme</string>
+				<string>com.shkao.glean.theme</string>
 			</array>
 			<key>LSTypeIsPackage</key>
 			<true/>
@@ -219,8 +219,8 @@
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<false/>
 	<key>UserAgent</key>
-	<string>NetNewsWire (RSS Reader; https://netnewswire.com/)</string>
+	<string>Glean (RSS Reader)</string>
 	<key>UserAgentExtended</key>
-	<string>NetNewsWire (RSS Reader; https://netnewswire.com/; [platform]; [version] ([build]))</string>
+	<string>Glean (RSS Reader; [platform]; [version] ([build]))</string>
 </dict>
 </plist>

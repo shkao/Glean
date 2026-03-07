@@ -35,10 +35,9 @@
 			<string>RSS Feed</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>netnewswire</string>
+				<string>glean</string>
 				<string>feed</string>
 				<string>feeds</string>
-				<string>x-netnewswire-feed</string>
 			</array>
 		</dict>
 	</array>
@@ -58,7 +57,7 @@
 		<true/>
 	</dict>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>NetNewsWire communicates with other apps on your Mac when you choose to share an article.</string>
+	<string>Glean communicates with other apps on your Mac when you choose to share an article.</string>
 	<key>NSAppleScriptEnabled</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
@@ -78,9 +77,9 @@
 	<key>SUFeedURL</key>
 	<string>https://ranchero.com/downloads/netnewswire-release.xml</string>
 	<key>UserAgent</key>
-	<string>NetNewsWire (RSS Reader; https://netnewswire.com/)</string>
+	<string>Glean (RSS Reader)</string>
 	<key>UserAgentExtended</key>
-	<string>NetNewsWire (RSS Reader; https://netnewswire.com/; [platform]; [version] ([build]))</string>
+	<string>Glean (RSS Reader; [platform]; [version] ([build]))</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -89,12 +88,12 @@
 				<string>nnwtheme</string>
 			</array>
 			<key>CFBundleTypeName</key>
-			<string>NetNewsWire Theme</string>
+			<string>Glean Theme</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>com.ranchero.netnewswire.theme</string>
+				<string>com.shkao.glean.theme</string>
 			</array>
 			<key>LSTypeIsPackage</key>
 			<true/>
@@ -125,11 +124,11 @@
 				<string>com.apple.package</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>NetNewsWire Theme</string>
+			<string>Glean Theme</string>
 			<key>UTTypeIconFiles</key>
 			<array/>
 			<key>UTTypeIdentifier</key>
-			<string>com.ranchero.netnewswire.theme</string>
+			<string>com.shkao.glean.theme</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
