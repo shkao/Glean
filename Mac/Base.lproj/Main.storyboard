@@ -116,6 +116,13 @@
                                                 <action selector="exportOPML:" target="Ady-hI-5gd" id="5Zy-m4-cE9"/>
                                             </connections>
                                         </menuItem>
+                                        <menuItem isSeparatorItem="YES" id="SmI-se-p01"/>
+                                        <menuItem title="Organize Feeds…" id="SmI-or-gFd">
+                                            <modifierMask key="keyEquivalentModifierMask"/>
+                                            <connections>
+                                                <action selector="organizeFeeds:" target="Ady-hI-5gd" id="SmI-ac-oFd"/>
+                                            </connections>
+                                        </menuItem>
                                         <menuItem isSeparatorItem="YES" id="FYN-zt-6dI"/>
                                         <menuItem title="Close Window" keyEquivalent="w" id="DVo-aG-piG">
                                             <connections>

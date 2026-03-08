@@ -70,6 +70,7 @@ struct Assets {
 		static var preferencesToolbarGeneral: RSImage { RSImage(symbol: "gearshape")! }
 		static var preferencesToolbarAdvanced: RSImage { RSImage(symbol: "gearshape.2")! }
 		static var preferencesToolbarOllama: RSImage { RSImage(symbol: "brain")! }
+		static var preferencesToolbarOpenRouter: RSImage { RSImage(symbol: "cloud")! }
 		static var readClosed: RSImage { RSImage(symbol: "largecircle.fill.circle")! }
 		static var readOpen: RSImage { RSImage(symbol: "circle")! }
 		static var refresh: RSImage { RSImage(symbol: "arrow.clockwise")! }

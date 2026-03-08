@@ -629,6 +629,24 @@ let appName = "Glean"
 		contentVC.presentAsSheet(hostingController)
 	}
 
+	@IBAction func organizeFeeds(_ sender: Any?) {
+		let windowController = createAndShowMainWindowIfNecessary()
+		if windowController.isDisplayingSheet {
+			return
+		}
+		guard let window = windowController.window,
+			  let contentVC = window.contentViewController else {
+			return
+		}
+		let hostingController = NSHostingController(rootView: OrganizeFeedsView(onDismiss: { [weak window] in
+			guard let sheet = window?.attachedSheet else {
+				return
+			}
+			window?.endSheet(sheet)
+		}))
+		contentVC.presentAsSheet(hostingController)
+	}
+
 	@IBAction func addAppNews(_ sender: Any?) {
 		if AccountManager.shared.anyAccountHasNetNewsWireNewsSubscription() {
 			return
