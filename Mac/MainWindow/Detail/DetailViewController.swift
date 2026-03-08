@@ -137,9 +137,8 @@ final class DetailViewController: NSViewController, WKUIDelegate {
 		let title = article?.title ?? ""
 		let htmlContent = extractedContent ?? article?.contentHTML ?? article?.summary ?? ""
 		let plainText = htmlContent.strippingHTML()
-		let excerpt = String(plainText.prefix(8000))
 
-		let panel = OllamaArticlePanel(articleTitle: title, articleExcerpt: excerpt, panelState: ollamaPanelState)
+		let panel = OllamaArticlePanel(articleTitle: title, articleExcerpt: plainText, panelState: ollamaPanelState)
 		let hosting = NSHostingController(rootView: panel)
 		hosting.view.translatesAutoresizingMaskIntoConstraints = false
 		hosting.sizingOptions = .intrinsicContentSize

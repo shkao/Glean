@@ -26,8 +26,9 @@ struct OllamaArticlePanel: View {
 	@AppStorage("OllamaSummaryLanguage") private var summaryLanguage: SummaryLanguage = .english
 	@State private var summary = ""
 	@State private var isSummarizing = false
+	@State private var summaryStatus = ""
 	@State private var question = ""
-	@State private var answer = ""
+	@State private var chatMessages: [ChatMessage] = []
 	@State private var isAnswering = false
 	@State private var isOllamaAvailable = true
 	@State private var errorMessage: String?
@@ -107,12 +108,31 @@ struct OllamaArticlePanel: View {
 				unavailableView
 			} else {
 				// Scrollable content area
-				ScrollView {
-					VStack(alignment: .leading, spacing: 10) {
-						summaryCard
-						answerCard
+				ScrollViewReader { proxy in
+					ScrollView {
+						VStack(alignment: .leading, spacing: 10) {
+							summaryCard
+							chatHistory
+							Color.clear
+								.frame(height: 1)
+								.id("bottom")
+						}
+						.padding(10)
 					}
-					.padding(10)
+					.onChange(of: summary) {
+						if isSummarizing {
+							withAnimation(.easeOut(duration: 0.15)) {
+								proxy.scrollTo("bottom", anchor: .bottom)
+							}
+						}
+					}
+					.onChange(of: chatMessages.last?.answer) {
+						if isAnswering {
+							withAnimation(.easeOut(duration: 0.15)) {
+								proxy.scrollTo("bottom", anchor: .bottom)
+							}
+						}
+					}
 				}
 
 				Divider()
@@ -238,6 +258,11 @@ struct OllamaArticlePanel: View {
 				if !summary.isEmpty {
 					streamingText(summary, isStreaming: isSummarizing)
 				} else if isSummarizing {
+					if !summaryStatus.isEmpty {
+						Text(summaryStatus)
+							.font(tinyFont)
+							.foregroundStyle(.secondary)
+					}
 					skeletonLines(count: 3)
 				}
 
@@ -276,44 +301,65 @@ struct OllamaArticlePanel: View {
 		.clipShape(RoundedRectangle(cornerRadius: 8))
 	}
 
-	// MARK: - Answer Card
+	// MARK: - Chat History
 
 	@ViewBuilder
-	private var answerCard: some View {
-		if !answer.isEmpty || isAnswering {
-			VStack(alignment: .leading, spacing: 8) {
-				HStack(spacing: 4) {
-					Image(systemName: "bubble.left.and.text.bubble.right")
-						.font(.system(size: 10))
-						.foregroundStyle(.secondary)
-					Text("Answer")
-						.font(.system(size: max(fontSize - 3, 9), weight: .medium))
-						.foregroundStyle(.secondary)
-					Spacer()
+	private var chatHistory: some View {
+		if !chatMessages.isEmpty {
+			ForEach(chatMessages) { msg in
+				chatBubble(msg)
+			}
+		}
+	}
 
-					if !answer.isEmpty && !isAnswering {
-						Button {
-							copyAnswer(answer)
-						} label: {
-							Image(systemName: didCopyAnswer ? "checkmark" : "doc.on.doc")
-								.font(.system(size: 10))
-						}
-						.buttonStyle(.plain)
-						.foregroundStyle(didCopyAnswer ? Color.accentColor : .secondary)
-					}
-				}
+	private func chatBubble(_ msg: ChatMessage) -> some View {
+		VStack(alignment: .leading, spacing: 6) {
+			// Question
+			HStack(alignment: .top, spacing: 6) {
+				Image(systemName: "person.circle.fill")
+					.font(.system(size: 12))
+					.foregroundStyle(.secondary)
+				Text(msg.question)
+					.font(smallFont.weight(.medium))
+					.textSelection(.enabled)
+			}
 
-				if !answer.isEmpty {
-					streamingText(answer, isStreaming: isAnswering)
-				} else if isAnswering {
+			// Answer
+			HStack(alignment: .top, spacing: 6) {
+				Image(systemName: "sparkles")
+					.font(.system(size: 12))
+					.foregroundStyle(Color.accentColor)
+
+				if !msg.answer.isEmpty {
+					let isStreaming = msg.id == chatMessages.last?.id && isAnswering
+					streamingText(msg.answer, isStreaming: isStreaming)
+				} else if isAnswering && msg.id == chatMessages.last?.id {
 					skeletonLines(count: 2)
 				}
 			}
-			.padding(10)
-			.background(.quaternary.opacity(0.3))
-			.clipShape(RoundedRectangle(cornerRadius: 8))
-			.transition(.opacity.combined(with: .move(edge: .top)))
+
+			// Copy button for completed answers
+			if !msg.answer.isEmpty && !(msg.id == chatMessages.last?.id && isAnswering) {
+				HStack {
+					Spacer()
+					Button {
+						copyToClipboard(msg.answer)
+						didCopyAnswer = true
+						DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+							didCopyAnswer = false
+						}
+					} label: {
+						Image(systemName: didCopyAnswer ? "checkmark" : "doc.on.doc")
+							.font(.system(size: 10))
+					}
+					.buttonStyle(.plain)
+					.foregroundStyle(didCopyAnswer ? Color.accentColor : .secondary)
+				}
+			}
 		}
+		.padding(10)
+		.background(.quaternary.opacity(0.3))
+		.clipShape(RoundedRectangle(cornerRadius: 8))
 	}
 
 	// MARK: - Ask Input Bar
@@ -583,7 +629,9 @@ struct OllamaArticlePanel: View {
 	private func runSummary() {
 		isSummarizing = true
 		summary = ""
+		summaryStatus = ""
 		errorMessage = nil
+		let lang = summaryLanguage
 		Task {
 			do {
 				let client = ollamaClient()
@@ -595,25 +643,51 @@ struct OllamaArticlePanel: View {
 				isOllamaAvailable = true
 
 				let summarizer = ArticleSummarizer(client: client, model: selectedModel)
-				let langCode = SummaryLanguageCode(rawValue: summaryLanguage.rawValue) ?? .english
-				let stream = try await summarizer.summarize(articleText: articleExcerpt, title: articleTitle, language: langCode)
+				let langCode = SummaryLanguageCode(rawValue: lang.rawValue) ?? .english
+				let stream = try await summarizer.summarize(
+					articleText: articleExcerpt,
+					title: articleTitle,
+					language: langCode,
+					onPhase: { @Sendable phase in
+						Task { @MainActor in
+							switch phase {
+							case .summarizing:
+								summaryStatus = ""
+							case .refining(let chunk, let total):
+								summaryStatus = "Refining \(chunk)/\(total)..."
+							}
+						}
+					},
+					onReplace: { @Sendable refined in
+						Task { @MainActor in
+							summary = Self.convertChineseVariant(refined, language: lang)
+						}
+					}
+				)
+				var raw = ""
 				for try await token in stream {
-					summary += token
+					raw += token
+					summary = raw
 				}
+				summary = Self.convertChineseVariant(raw, language: lang)
 			} catch {
 				errorMessage = error.localizedDescription
 			}
 			isSummarizing = false
+			summaryStatus = ""
 		}
 	}
 
 	private func runAnswer() {
 		guard !question.isEmpty else { return }
 		isAnswering = true
-		answer = ""
 		errorMessage = nil
 		let q = question
 		question = ""
+
+		let messageID = UUID().uuidString
+		chatMessages.append(ChatMessage(id: messageID, question: q, answer: ""))
+
 		Task {
 			do {
 				let client = ollamaClient()
@@ -628,12 +702,33 @@ struct OllamaArticlePanel: View {
 				let qa = ArticleQA(client: client, model: selectedModel)
 				let stream = try await qa.ask(question: q, articleText: context)
 				for try await token in stream {
-					answer += token
+					let lastIdx = chatMessages.count - 1
+					if lastIdx >= 0, chatMessages[lastIdx].id == messageID {
+						chatMessages[lastIdx].answer += token
+					}
 				}
 			} catch {
 				errorMessage = error.localizedDescription
 			}
 			isAnswering = false
+		}
+	}
+
+	/// Converts Chinese text to the correct variant (Traditional/Simplified)
+	/// using Apple's ICU-based CFStringTransform. Small LLMs often output the
+	/// wrong variant regardless of prompt instructions.
+	private static func convertChineseVariant(_ text: String, language: SummaryLanguage) -> String {
+		switch language {
+		case .zhTW:
+			let mutable = NSMutableString(string: text)
+			CFStringTransform(mutable, nil, "Hans-Hant" as CFString, false)
+			return mutable as String
+		case .zhCN:
+			let mutable = NSMutableString(string: text)
+			CFStringTransform(mutable, nil, "Hant-Hans" as CFString, false)
+			return mutable as String
+		default:
+			return text
 		}
 	}
 
@@ -654,16 +749,15 @@ struct OllamaArticlePanel: View {
 		}
 	}
 
-	private func copyAnswer(_ text: String) {
-		copyToClipboard(text)
-		didCopyAnswer = true
-		DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-			didCopyAnswer = false
-		}
-	}
 }
 
 // MARK: - Supporting Types
+
+struct ChatMessage: Identifiable {
+	let id: String
+	let question: String
+	var answer: String
+}
 
 private enum SummaryLanguage: String, CaseIterable, Identifiable {
 	case english, zhTW, zhCN, japanese, korean, spanish, french, german

@@ -206,7 +206,7 @@ struct ImportURLsView: View {
 		importProgress = 0
 
 		Task {
-			let account = savedPagesAccount()
+			let account = AccountManager.savedPagesAccount()
 			let importer = BulkURLImporter()
 			let result = await importer.importURLs(extractedURLs, to: account, folder: nil) { completed, total in
 				importProgress = completed
@@ -217,13 +217,6 @@ struct ImportURLsView: View {
 		}
 	}
 
-	private func savedPagesAccount() -> Account {
-		let manager = AccountManager.shared
-		if let existing = manager.activeAccounts.first(where: { $0.type == .savedPages }) {
-			return existing
-		}
-		return manager.createAccount(type: .savedPages)
-	}
 }
 
 private struct ImportResult {

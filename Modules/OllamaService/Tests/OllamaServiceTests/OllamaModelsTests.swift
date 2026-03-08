@@ -87,7 +87,7 @@ struct OllamaSettingsTests {
 	func defaultSettings() {
 		let settings = OllamaSettings()
 		#expect(settings.baseURL == "http://localhost:11434")
-		#expect(settings.preferredModel == "llama3.2")
+		#expect(settings.preferredModel == "qwen2.5:3b")
 	}
 
 	@Test("Settings round-trip through Codable")
